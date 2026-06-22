@@ -1,0 +1,6 @@
+node_modules
+dist
+.env
+coverage
+assets/avatars/*.png
+!assets/avatars/.gitkeep

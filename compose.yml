@@ -1,0 +1,70 @@
+services:
+  api:
+    build: .
+    command: sh -c "pnpm prisma:migrate && node dist/main.js"
+    env_file: ${ENV_FILE:-.env.example}
+    ports: ["3000:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      meilisearch: { condition: service_healthy }
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  worker:
+    build: .
+    command: node dist/worker.js
+    env_file: ${ENV_FILE:-.env.example}
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      { POSTGRES_USER: anyrem, POSTGRES_PASSWORD: anyrem, POSTGRES_DB: anyrem }
+    ports: ["5434:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      {
+        test: ["CMD-SHELL", "pg_isready -U anyrem"],
+        interval: 5s,
+        timeout: 3s,
+        retries: 20,
+      }
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      {
+        test: ["CMD", "redis-cli", "ping"],
+        interval: 5s,
+        timeout: 3s,
+        retries: 20,
+      }
+  meilisearch:
+    image: getmeili/meilisearch:v1.31
+    environment:
+      {
+        MEILI_ENV: production,
+        MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:-change-me}",
+      }
+    ports: ["7700:7700"]
+    volumes: ["meili_data:/meili_data"]
+    healthcheck:
+      {
+        test: ["CMD", "wget", "--spider", "http://localhost:7700/health"],
+        interval: 5s,
+        timeout: 3s,
+        retries: 20,
+      }
+volumes: { postgres_data: {}, redis_data: {}, meili_data: {} }
