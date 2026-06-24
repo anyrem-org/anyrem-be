@@ -5,6 +5,12 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module.js";
 
 const app = await NestFactory.create(AppModule);
+app
+  .getHttpAdapter()
+  .getInstance()
+  .set("json replacer", (_key: string, value: unknown) =>
+    typeof value === "bigint" ? value.toString() : value,
+  );
 app.setGlobalPrefix("api");
 app.enableCors({ origin: true, credentials: true });
 app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
