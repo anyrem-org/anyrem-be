@@ -29,13 +29,33 @@ OpenAPI JSON: `http://localhost:3000/api/docs-json`.
 
 ## Avatar catalog
 
-Put downloaded PNG files in `assets/avatars`, add entries to `manifest.json`, then run `pnpm avatars:import`:
+Avatar catalog uses local DiceBear-generated SVG files plus metadata in Postgres.
 
-```json
-[{ "name": "Avatar 01", "file": "avatar-01.png", "style": "lorelei", "seed": "01", "sortOrder": 1 }]
+1. Generate local files and manifest:
+
+```powershell
+pnpm avatars:generate
 ```
 
-Users can list/select catalog avatars. No upload route exists.
+2. Import manifest metadata into database:
+
+```powershell
+pnpm avatars:import
+```
+
+3. Sync both:
+
+```powershell
+pnpm avatars:sync
+```
+
+Generated files live under `assets/avatars/<style>/...svg`. Backend serves them from `/avatars/*`, and the catalog APIs are:
+
+- `GET /api/avatar-styles`
+- `GET /api/avatars`
+- `GET /api/avatars?style=lorelei`
+
+DiceBear styles are configured centrally in `scripts/avatar-styles.config.ts`.
 
 ## Main routes
 

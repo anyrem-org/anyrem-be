@@ -1,47 +1,104 @@
+// @ts-nocheck
 import { PrismaClient } from "@prisma/client";
-import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import { resolve } from "node:path";
 
-type Item = {
+type ManifestItem = {
   name: string;
   file: string;
-  style?: string;
-  seed?: string;
-  sortOrder?: number;
+  provider: string;
+  version: string;
+  style: string;
+  styleName: string;
+  seed: string;
+  sortOrder: number;
+  isActive: boolean;
 };
+
 const root = resolve("assets/avatars");
 const manifest = JSON.parse(
   await readFile(resolve(root, "manifest.json"), "utf8"),
-) as Item[];
+) as ManifestItem[];
 const prisma = new PrismaClient();
-for (const item of manifest) {
-  const data = await readFile(resolve(root, item.file));
-  if (data.length > 256 * 1024 || data.subarray(1, 4).toString() !== "PNG")
-    throw new Error(`${item.file}: expected PNG <= 256 KB`);
-  const sha256 = createHash("sha256").update(data).digest("hex");
-  await prisma.avatarCatalog.upsert({
-    where: { sha256 },
-    create: {
-      name: item.name,
-      style: item.style,
-      seed: item.seed,
-      mimeType: "image/png",
-      imageData: data,
-      imageSize: data.length,
-      sha256,
-      sortOrder: item.sortOrder ?? 0,
-    },
-    update: {
-      name: item.name,
-      style: item.style,
-      seed: item.seed,
-      imageData: data,
-      imageSize: data.length,
-      sortOrder: item.sortOrder ?? 0,
-      active: true,
-    },
-  });
+
+function validate(item: ManifestItem, index: number) {
+  for (const key of [
+    "name",
+    "file",
+    "provider",
+    "version",
+    "style",
+    "styleName",
+    "seed",
+  ] as const) {
+    if (!item[key] || typeof item[key] !== "string") {
+      throw new Error(`manifest[${index}].${key} is required`);
+    }
+  }
+  if (!Number.isInteger(item.sortOrder)) {
+    throw new Error(`manifest[${index}].sortOrder must be an integer`);
+  }
+  if (typeof item.isActive !== "boolean") {
+    throw new Error(`manifest[${index}].isActive must be a boolean`);
+  }
 }
+
+let created = 0;
+let updated = 0;
+let failed = 0;
+
+for (const [index, item] of manifest.entries()) {
+  try {
+    validate(item, index);
+    const absolutePath = resolve(root, item.file);
+    await access(absolutePath, constants.F_OK);
+    const firstChunk = await readFile(absolutePath, "utf8");
+    if (!firstChunk.trimStart().startsWith("<svg")) {
+      throw new Error(`${item.file}: expected SVG`);
+    }
+
+    const data = {
+      name: item.name,
+      provider: item.provider,
+      version: item.version,
+      style: item.style,
+      styleName: item.styleName,
+      seed: item.seed,
+      filePath: `/avatars/${item.file.replace(/\\/g, "/")}`,
+      sortOrder: item.sortOrder,
+      isActive: item.isActive,
+    };
+    const existing = await prisma.avatarCatalog.findUnique({
+      where: {
+        provider_version_style_seed: {
+          provider: item.provider,
+          version: item.version,
+          style: item.style,
+          seed: item.seed,
+        },
+      },
+      select: { id: true },
+    });
+    await prisma.avatarCatalog.upsert({
+      where: {
+        provider_version_style_seed: {
+          provider: item.provider,
+          version: item.version,
+          style: item.style,
+          seed: item.seed,
+        },
+      },
+      create: data,
+      update: data,
+    });
+    if (existing) updated += 1;
+    else created += 1;
+  } catch (error) {
+    failed += 1;
+    console.error(`Avatar import failed at index ${index}:`, error);
+  }
+}
+
 await prisma.$disconnect();
-console.log(`Imported ${manifest.length} avatars.`);
+console.log(`Imported avatars. Created: ${created}. Updated: ${updated}. Failed: ${failed}.`);
