@@ -21,7 +21,7 @@ export class DashboardService {
     );
     const day = localDateInfo(new Date(), timezone);
     const weekStart = new Date(day.start.getTime() - 6 * 86_400_000);
-    const [today, continuing, activities, categories, recap] =
+    const [today, continuing, activityEvents, categories, recap] =
       await Promise.all([
         this.prisma.note.findMany({
           where: {
@@ -41,7 +41,7 @@ export class DashboardService {
           where: { userId, note: { deletedAt: null } },
           include: { note: { include: dashboardNoteInclude } },
           orderBy: { occurredAt: "desc" },
-          take: 6,
+          take: 24,
         }),
         this.prisma.category.findMany({
           where: { userId },
@@ -57,6 +57,14 @@ export class DashboardService {
           where: { userId_localDate: { userId, localDate: day.dbDate } },
         }),
       ]);
+    const seenNoteIds = new Set<string>();
+    const activities = activityEvents
+      .filter((event) => {
+        if (seenNoteIds.has(event.noteId)) return false;
+        seenNoteIds.add(event.noteId);
+        return true;
+      })
+      .slice(0, 6);
     return {
       today,
       continue: continuing,
@@ -75,28 +83,42 @@ export class DashboardService {
     };
   }
   async graph(userId: string) {
-    const [categories, notes, relations] = await Promise.all([
-      this.prisma.category.findMany({ where: { userId } }),
+    const [categories, notes] = await Promise.all([
+      this.prisma.category.findMany({
+        where: { userId },
+        include: { _count: { select: { notes: true } } },
+      }),
       this.prisma.note.findMany({
         where: { userId, deletedAt: null },
-        include: { categories: true },
+        include: {
+          categories: { include: { category: true } },
+          relationsLeft: true,
+          relationsRight: true,
+        },
       }),
-      this.prisma.noteRelation.findMany({ where: { userId } }),
     ]);
     return {
-      nodes: [
-        ...categories.map((x) => ({
-          id: `category-${x.id}`,
-          type: "category",
-          label: x.name,
-          color: x.color,
-        })),
-        ...notes.map((x) => ({
-          id: `note-${x.id}`,
-          type: "note",
-          label: x.title,
-        })),
-      ],
+      categories: categories.map((x) => ({
+        id: x.id,
+        name: x.name,
+        description: x.description ?? "",
+        color: x.color,
+        icon: x.icon,
+        noteCount: x._count.notes,
+      })),
+      notes: notes.map((x) => ({
+        id: x.id,
+        title: x.title,
+        content: x.contentText,
+        category: x.categories[0]?.category.name ?? "Uncategorized",
+        categoryColor: x.categories[0]?.category.color ?? "#64748b",
+        categoryIds: x.categories.map((c) => c.categoryId),
+        relatedIds: [
+          ...x.relationsLeft.map((r) => r.rightNoteId),
+          ...x.relationsRight.map((r) => r.leftNoteId),
+        ],
+        updatedAt: x.updatedAt,
+      })),
       edges: [
         ...notes.flatMap((x) =>
           x.categories.map((c) => ({
@@ -106,12 +128,14 @@ export class DashboardService {
             type: "contains",
           })),
         ),
-        ...relations.map((x) => ({
-          id: `related-${x.id}`,
-          source: `note-${x.leftNoteId}`,
-          target: `note-${x.rightNoteId}`,
-          type: "related",
-        })),
+        ...notes.flatMap((x) =>
+          x.relationsLeft.map((r) => ({
+            id: `related-${r.id}`,
+            source: `note-${r.leftNoteId}`,
+            target: `note-${r.rightNoteId}`,
+            type: "related",
+          })),
+        ),
       ],
     };
   }
