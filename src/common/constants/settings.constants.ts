@@ -2,6 +2,7 @@ export const SETTING_TYPES = {
   APPEARANCE: "appearance",
   REGIONAL: "regional",
   SEARCH: "search",
+  QUICK_ACCESS: "quick_access",
   RECAP: "recap",
   TELEGRAM: "telegram",
 } as const;
@@ -10,6 +11,7 @@ export const SETTING_KEYS = {
   APPEARANCE: { THEME: "theme", COMPACT_DENSITY: "compact_density", SHOW_ACTIVITY_PANEL: "show_activity_panel" },
   REGIONAL: { LOCALE: "locale", TIMEZONE: "timezone" },
   SEARCH: { SEARCH_AS_YOU_TYPE: "search_as_you_type", SAVE_HISTORY: "save_history", TYPO_TOLERANCE: "typo_tolerance" },
+  QUICK_ACCESS: { SHORTCUTS: "shortcuts" },
   RECAP: { ENABLED: "enabled", DELIVERY_TIME: "delivery_time", EMAIL_ENABLED: "email_enabled", TELEGRAM_ENABLED: "telegram_enabled" },
   TELEGRAM: { BOT_TOKEN: "bot_token", CHAT_ID: "chat_id", BOT_USERNAME: "bot_username", VERIFIED_AT: "verified_at" },
 } as const;
@@ -23,6 +25,11 @@ type Entry = { type: SettingType; key: string; defaultValue: SettingValue; valid
 const bool = (value: unknown) => typeof value === "boolean";
 const oneOf = (values: readonly string[]) => (value: unknown) => typeof value === "string" && values.includes(value);
 const string = (value: unknown) => typeof value === "string" && value.length > 0;
+const shortcuts = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const input = value as Record<string, unknown>;
+  return ["search", "create"].every((key) => typeof input[key] === "string" && input[key].length > 0);
+};
 export const isValidTime = (value: unknown) => typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
 const isTimezone = (value: unknown) => {
   if (typeof value !== "string") return false;
@@ -38,6 +45,7 @@ export const SETTING_REGISTRY = [
   { type: SETTING_TYPES.SEARCH, key: SETTING_KEYS.SEARCH.SEARCH_AS_YOU_TYPE, defaultValue: true, validate: bool, secret: false },
   { type: SETTING_TYPES.SEARCH, key: SETTING_KEYS.SEARCH.SAVE_HISTORY, defaultValue: true, validate: bool, secret: false },
   { type: SETTING_TYPES.SEARCH, key: SETTING_KEYS.SEARCH.TYPO_TOLERANCE, defaultValue: TYPO_TOLERANCES.BALANCED, validate: oneOf(Object.values(TYPO_TOLERANCES)), secret: false },
+  { type: SETTING_TYPES.QUICK_ACCESS, key: SETTING_KEYS.QUICK_ACCESS.SHORTCUTS, defaultValue: { search: "CommandOrControl+Alt+Space", create: "CommandOrControl+Alt+N" }, validate: shortcuts, secret: false },
   { type: SETTING_TYPES.RECAP, key: SETTING_KEYS.RECAP.ENABLED, defaultValue: true, validate: bool, secret: false },
   { type: SETTING_TYPES.RECAP, key: SETTING_KEYS.RECAP.DELIVERY_TIME, defaultValue: "22:00", validate: isValidTime, secret: false },
   { type: SETTING_TYPES.RECAP, key: SETTING_KEYS.RECAP.EMAIL_ENABLED, defaultValue: true, validate: bool, secret: false },
