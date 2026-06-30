@@ -4,7 +4,7 @@ run-name: ${{ github.actor }} is deploying to ${{ github.ref }}
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
   CONTAINER_NAME: anyrem-be
