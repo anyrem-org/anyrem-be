@@ -24,7 +24,7 @@ export class QueueService implements OnModuleDestroy {
     return this.search.add(
       JOB_NAMES.INDEX_NOTE,
       { noteId },
-      { jobId: `note-${noteId}`, removeOnComplete: 100, removeOnFail: 100 },
+      { removeOnComplete: 100, removeOnFail: 100 },
     );
   }
 

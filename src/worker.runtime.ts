@@ -6,6 +6,7 @@ import { MeiliService } from "./infrastructure/search/meili.service.js";
 import { PrismaService } from "./infrastructure/prisma/prisma.module.js";
 import { QueueService } from "./infrastructure/queue/queue.service.js";
 import { RecapService } from "./modules/recap/recap.service.js";
+import { UploadsService } from "./modules/uploads/uploads.service.js";
 
 @Injectable()
 export class WorkerRuntime implements OnApplicationShutdown {
@@ -17,6 +18,7 @@ export class WorkerRuntime implements OnApplicationShutdown {
     private readonly queues: QueueService,
     private readonly meili: MeiliService,
     private readonly recaps: RecapService,
+    private readonly uploads: UploadsService,
   ) {}
   async start() {
     await this.meili.configure();
@@ -79,6 +81,7 @@ export class WorkerRuntime implements OnApplicationShutdown {
         await this.prisma.activityEvent.deleteMany({
           where: { occurredAt: { lt: new Date(Date.now() - 90 * 86_400_000) } },
         });
+        await this.uploads.deleteExpiredPhysicalFiles();
       }
     };
     await tick();

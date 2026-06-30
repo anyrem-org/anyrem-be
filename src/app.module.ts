@@ -9,6 +9,7 @@ import { NotesModule } from "./modules/notes/notes.module.js";
 import { RecapModule } from "./modules/recap/recap.module.js";
 import { SearchModule } from "./modules/search/search.module.js";
 import { SettingsModule } from "./modules/settings/settings.module.js";
+import { UploadsModule } from "./modules/uploads/uploads.module.js";
 import { UsersModule } from "./modules/users/users.module.js";
 import { InfrastructureModule } from "./infrastructure/infrastructure.module.js";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module.js";
@@ -29,6 +30,7 @@ import { HealthController } from "./health.controller.js";
     CategoriesModule,
     SearchModule,
     DashboardModule,
+    UploadsModule,
     RecapModule,
   ],
   controllers: [HealthController],

@@ -229,6 +229,22 @@ model ActivityEvent {
   @@map("activity_events")
 }
 
+model Upload {
+  id        String    @id @db.Uuid
+  userId    String    @db.Uuid
+  noteId    String?   @db.Uuid
+  path      String    @unique @db.VarChar(500)
+  mimeType  String    @db.VarChar(80)
+  sizeBytes Int
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([noteId])
+  @@index([deletedAt])
+  @@map("uploads")
+}
+
 model SearchHistory {
   id                String   @id @default(uuid()) @db.Uuid
   userId            String   @db.Uuid

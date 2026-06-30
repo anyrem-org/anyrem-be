@@ -20,22 +20,15 @@ export class ActivityService {
         where: { userId, note: { deletedAt: null } },
         include: { note: { include: noteInclude } },
         orderBy: { occurredAt: "desc" },
-        take: 20,
+        take: 12,
       }),
       this.prisma.activityEvent.count({
         where: { userId, occurredAt: { gte: dayStart } },
       }),
     ]);
-    const seenNoteIds = new Set<string>();
     return {
       todayCount,
       items: events
-        .filter((event) => {
-          if (seenNoteIds.has(event.noteId)) return false;
-          seenNoteIds.add(event.noteId);
-          return true;
-        })
-        .slice(0, 6)
         .map((event) => ({
           id: event.id.toString(),
           type: event.type,

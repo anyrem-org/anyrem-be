@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import {
   SETTING_KEYS,
   SETTING_TYPES,
@@ -19,24 +20,58 @@ export class SearchService {
   async notes(userId: string, query: string, params: SearchParams) {
     const page = Math.max(Number(params.page ?? 1), 1),
       limit = Math.min(Math.max(Number(params.limit ?? 20), 1), 100);
+    const from = params.from ? new Date(params.from) : undefined;
+    const to = params.to ? new Date(params.to) : undefined;
+    if (from && Number.isNaN(from.getTime()))
+      throw new BadRequestException("Invalid from date");
+    if (to && Number.isNaN(to.getTime()))
+      throw new BadRequestException("Invalid to date");
+    if (!query.trim() && params.pinned === "true") {
+      const where: Prisma.NoteWhereInput = {
+        userId,
+        deletedAt: null,
+        pinned: true,
+        categories: params.categoryId
+          ? { some: { categoryId: params.categoryId } }
+          : undefined,
+        createdAt: from || to ? { gte: from, lte: to } : undefined,
+      };
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.note.findMany({
+          where,
+          include: { categories: { include: { category: true } } },
+          orderBy: { updatedAt: "desc" },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.note.count({ where }),
+      ]);
+      return {
+        items: items.map((note) => ({
+          id: note.id,
+          userId: note.userId,
+          title: note.title,
+          contentText: note.contentText,
+          categoryIds: note.categories.map((x) => x.categoryId),
+          categoryNames: note.categories.map((x) => x.category.name),
+          pinned: note.pinned,
+          createdAt: Math.floor(note.createdAt.getTime() / 1000),
+          updatedAt: Math.floor(note.updatedAt.getTime() / 1000),
+        })),
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
     const filters = [`userId = "${userId}"`];
     if (params.categoryId)
       filters.push(
         `categoryIds = "${params.categoryId.replace(/[^a-f0-9-]/gi, "")}"`,
       );
     if (params.pinned === "true") filters.push("pinned = true");
-    if (params.from) {
-      const value = new Date(params.from);
-      if (Number.isNaN(value.getTime()))
-        throw new BadRequestException("Invalid from date");
-      filters.push(`createdAt >= ${Math.floor(value.getTime() / 1000)}`);
-    }
-    if (params.to) {
-      const value = new Date(params.to);
-      if (Number.isNaN(value.getTime()))
-        throw new BadRequestException("Invalid to date");
-      filters.push(`createdAt <= ${Math.floor(value.getTime() / 1000)}`);
-    }
+    if (from) filters.push(`createdAt >= ${Math.floor(from.getTime() / 1000)}`);
+    if (to) filters.push(`createdAt <= ${Math.floor(to.getTime() / 1000)}`);
     const result = await this.meili.notes.search(query, {
       filter: filters,
       sort: params.sort === "recent" ? ["updatedAt:desc"] : undefined,

@@ -6,7 +6,8 @@ import {
 import { ActivityType, NoteRelationType, Prisma } from "@prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { QueueService } from "../../infrastructure/queue/queue.service.js";
-import { htmlOf, textOf, unique } from "./notes.helpers.js";
+import { UploadsService } from "../uploads/uploads.service.js";
+import { htmlOf, imagePathsOf, textOf, unique } from "./notes.helpers.js";
 import {
   NOTE_SORTS,
   type NoteInput,
@@ -18,6 +19,7 @@ export class NotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queue: QueueService,
+    private readonly uploads: UploadsService,
   ) {}
   private include = {
     categories: { include: { category: true } },
@@ -154,6 +156,7 @@ export class NotesService {
       return note;
     });
 
+    await this.uploads.syncNoteImages(userId, note.id, imagePathsOf(input.contentJson));
     await this.queue.indexNote(note.id);
 
     return this.get(userId, note.id);
@@ -216,6 +219,8 @@ export class NotesService {
         data: { userId, noteId: id, type: ActivityType.EDITED },
       });
     });
+    if (input.contentJson)
+      await this.uploads.syncNoteImages(userId, id, imagePathsOf(input.contentJson));
     await this.queue.indexNote(id);
     return this.get(userId, id);
   }
@@ -226,6 +231,7 @@ export class NotesService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+    await this.uploads.markNoteImagesDeleted(userId, id);
     await this.queue.deleteNote(id);
     return { deleted: true };
   }

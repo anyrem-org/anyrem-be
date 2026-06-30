@@ -110,6 +110,7 @@ export class DashboardService {
         id: x.id,
         title: x.title,
         content: x.contentText,
+        contentHtml: x.contentHtml,
         category: x.categories[0]?.category.name ?? "Uncategorized",
         categoryColor: x.categories[0]?.category.color ?? "#64748b",
         categoryIds: x.categories.map((c) => c.categoryId),
