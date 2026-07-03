@@ -72,7 +72,7 @@ jobs:
 
             docker run -d \
               --name "$CONTAINER_NAME" \
-              --add-host=host.docker.internal:172.18.0.1 \
+              --add-host=host.docker.internal:172.19.0.1 \
               --network "$DOCKER_NETWORK" \
               --restart unless-stopped \
               -p 127.0.0.1:3005:3000 \
