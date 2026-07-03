@@ -10,6 +10,7 @@ env:
   CONTAINER_NAME: anyrem-be
   ENV_FILE: /opt/anyrem-be/.env.production
   UPLOADS_VOLUME: anyrem_uploads
+  AVATARS_VOLUME: anyrem_avatars
   DOCKER_NETWORK: anyrem_network
 
 jobs:
@@ -55,6 +56,7 @@ jobs:
             DOCKER_NETWORK=${{ env.DOCKER_NETWORK }}
             ENV_FILE=${{ env.ENV_FILE }}
             UPLOADS_VOLUME=${{ env.UPLOADS_VOLUME }}
+            AVATARS_VOLUME=${{ env.AVATARS_VOLUME }}
 
             docker pull "$IMAGE_NAME:latest"
 
@@ -78,6 +80,7 @@ jobs:
               -p 127.0.0.1:3005:3000 \
               --env-file "$ENV_FILE" \
               -v "$UPLOADS_VOLUME":/app/uploads \
+              -v "$AVATARS_VOLUME":/app/assets/avatars \
               "$IMAGE_NAME:latest"
 
             docker image prune -f
