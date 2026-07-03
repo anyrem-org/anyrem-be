@@ -61,7 +61,7 @@ jobs:
             docker network inspect "$DOCKER_NETWORK" > /dev/null 2>&1 || docker network create "$DOCKER_NETWORK"
 
             docker run --rm \
-              --add-host=host.docker.internal:172.18.0.1 \
+              --add-host=host.docker.internal:172.19.0.1 \
               --network "$DOCKER_NETWORK" \
               --env-file "$ENV_FILE" \
               "$IMAGE_NAME:latest" \
@@ -98,7 +98,10 @@ jobs:
           <code>${{ github.event.head_commit.message }}</code>
 
           👤 Author:
-          ${{ github.event.head_commit.author.name }}"
+          ${{ github.event.head_commit.author.name }}
+
+          🔎 Logs:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Notify telegram fail
         if: failure()
