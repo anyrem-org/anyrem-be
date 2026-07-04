@@ -8,6 +8,7 @@ on:
 
 env:
   CONTAINER_NAME: anyrem-be
+  WORKER_CONTAINER_NAME: anyrem-be-worker
   ENV_FILE: /opt/anyrem-be/.env.production
   UPLOADS_VOLUME: anyrem_uploads
   AVATARS_VOLUME: anyrem_avatars
@@ -53,6 +54,7 @@ jobs:
 
             IMAGE_NAME=${{ env.IMAGE_NAME }}
             CONTAINER_NAME=${{ env.CONTAINER_NAME }}
+            WORKER_CONTAINER_NAME=${{ env.WORKER_CONTAINER_NAME }}
             DOCKER_NETWORK=${{ env.DOCKER_NETWORK }}
             ENV_FILE=${{ env.ENV_FILE }}
             UPLOADS_VOLUME=${{ env.UPLOADS_VOLUME }}
@@ -71,6 +73,8 @@ jobs:
 
             docker stop "$CONTAINER_NAME" || true
             docker rm "$CONTAINER_NAME" || true
+            docker stop "$WORKER_CONTAINER_NAME" || true
+            docker rm "$WORKER_CONTAINER_NAME" || true
 
             docker run -d \
               --name "$CONTAINER_NAME" \
@@ -82,6 +86,17 @@ jobs:
               -v "$UPLOADS_VOLUME":/app/uploads \
               -v "$AVATARS_VOLUME":/app/assets/avatars \
               "$IMAGE_NAME:latest"
+
+            docker run -d \
+              --name "$WORKER_CONTAINER_NAME" \
+              --add-host=host.docker.internal:172.19.0.1 \
+              --network "$DOCKER_NETWORK" \
+              --restart unless-stopped \
+              --env-file "$ENV_FILE" \
+              -v "$UPLOADS_VOLUME":/app/uploads \
+              -v "$AVATARS_VOLUME":/app/assets/avatars \
+              "$IMAGE_NAME:latest" \
+              node dist/worker.js
 
             docker image prune -f
 
