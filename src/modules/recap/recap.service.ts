@@ -16,7 +16,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { QueueService } from "../../infrastructure/queue/queue.service.js";
 import { TelegramService } from "../../infrastructure/telegram/telegram.service.js";
 import { SettingsService } from "../settings/settings.service.js";
-import { escapeHtml, maskEmail, renderSummary } from "./recap.helpers.js";
+import { maskEmail, noteSnippet, renderSummary, renderSummaryHtml } from "./recap.helpers.js";
 import type { SummaryPayload } from "./recap.types.js";
 
 @Injectable()
@@ -51,19 +51,20 @@ export class RecapService {
       include: { categories: { include: { category: true } } },
       orderBy: { updatedAt: "asc" },
     });
-    const groups = new Map<string, string[]>();
+    const groups = new Map<string, { title: string; snippet: string }[]>();
     for (const note of notes) {
       const names = note.categories.length
         ? note.categories.map((x) => x.category.name)
         : ["Uncategorized"];
       for (const name of names)
         (groups.get(name) ?? (groups.set(name, []), groups.get(name)!)).push(
-          note.title,
+          { title: note.title, snippet: noteSnippet(note.contentText) },
         );
     }
     const payload: SummaryPayload = {
       date: day.key,
-      groups: [...groups].map(([category, titles]) => ({ category, titles })),
+      noteCount: notes.length,
+      groups: [...groups].map(([category, notes]) => ({ category, notes })),
     };
     return this.prisma.dailySummary.create({
       data: {
@@ -165,12 +166,11 @@ export class RecapService {
           throw new Error("Email is not verified");
         const payload = delivery.summary
           .contentJson as unknown as SummaryPayload;
-        const html = `<h1>Daily recap ${escapeHtml(payload.date)}</h1>${payload.groups.map((g) => `<h2>${escapeHtml(g.category)}</h2><ul>${g.titles.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>`).join("")}`;
         await this.mail.send(
           delivery.user.email,
           `Remember Anything — Daily recap ${payload.date}`,
           delivery.summary.contentText,
-          html,
+          renderSummaryHtml(payload),
         );
       } else {
         const token = await this.settings.secret(

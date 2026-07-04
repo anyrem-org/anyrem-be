@@ -1,1 +1,5 @@
-export type SummaryPayload = { date: string; groups: { category: string; titles: string[] }[] };
+export type SummaryPayload = {
+  date: string;
+  noteCount: number;
+  groups: { category: string; notes: { title: string; snippet: string }[] }[];
+};
