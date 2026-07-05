@@ -12,11 +12,9 @@ export const SETTING_KEYS = {
     THEME: "theme",
     SHOW_ACTIVITY_PANEL: "show_activity_panel",
   },
-  REGIONAL: { LOCALE: "locale", TIMEZONE: "timezone" },
+  REGIONAL: { TIMEZONE: "timezone" },
   SEARCH: {
-    SEARCH_AS_YOU_TYPE: "search_as_you_type",
     SAVE_HISTORY: "save_history",
-    TYPO_TOLERANCE: "typo_tolerance",
   },
   QUICK_ACCESS: { SHORTCUTS: "shortcuts" },
   RECAP: {
@@ -37,11 +35,6 @@ export const THEMES = {
   LIGHT: "LIGHT",
   DARK: "DARK",
   SYSTEM: "SYSTEM",
-} as const;
-export const TYPO_TOLERANCES = {
-  STRICT: "STRICT",
-  BALANCED: "BALANCED",
-  FLEXIBLE: "FLEXIBLE",
 } as const;
 export type SettingType = (typeof SETTING_TYPES)[keyof typeof SETTING_TYPES];
 export type SettingValue =
@@ -99,13 +92,6 @@ export const SETTING_REGISTRY = [
   },
   {
     type: SETTING_TYPES.REGIONAL,
-    key: SETTING_KEYS.REGIONAL.LOCALE,
-    defaultValue: "vi-VN",
-    validate: string,
-    secret: false,
-  },
-  {
-    type: SETTING_TYPES.REGIONAL,
     key: SETTING_KEYS.REGIONAL.TIMEZONE,
     defaultValue: "Asia/Ho_Chi_Minh",
     validate: isTimezone,
@@ -113,23 +99,9 @@ export const SETTING_REGISTRY = [
   },
   {
     type: SETTING_TYPES.SEARCH,
-    key: SETTING_KEYS.SEARCH.SEARCH_AS_YOU_TYPE,
-    defaultValue: true,
-    validate: bool,
-    secret: false,
-  },
-  {
-    type: SETTING_TYPES.SEARCH,
     key: SETTING_KEYS.SEARCH.SAVE_HISTORY,
     defaultValue: true,
     validate: bool,
-    secret: false,
-  },
-  {
-    type: SETTING_TYPES.SEARCH,
-    key: SETTING_KEYS.SEARCH.TYPO_TOLERANCE,
-    defaultValue: TYPO_TOLERANCES.BALANCED,
-    validate: oneOf(Object.values(TYPO_TOLERANCES)),
     secret: false,
   },
   {
