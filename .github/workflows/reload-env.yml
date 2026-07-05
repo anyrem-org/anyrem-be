@@ -1,0 +1,143 @@
+# Recreate the running containers so they pick up an updated env file,
+# WITHOUT rebuilding or pushing a new Docker image.
+#
+# Use this when you only changed configuration (SMTP, Google, secrets, ...)
+# in /opt/anyrem-be/.env.production on the server.
+#
+# Trigger it manually from the GitHub Actions tab (workflow_dispatch).
+name: Reload Env
+run-name: ${{ github.actor }} is reloading backend env
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: "Run prisma migrate deploy before restarting"
+        type: boolean
+        default: false
+
+env:
+  CONTAINER_NAME: anyrem-be
+  WORKER_CONTAINER_NAME: anyrem-be-worker
+  ENV_FILE: /opt/anyrem-be/.env.production
+  UPLOADS_VOLUME: anyrem_uploads
+  AVATARS_VOLUME: anyrem_avatars
+  DOCKER_NETWORK: anyrem_network
+
+jobs:
+  reload-env:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/anyrem-be
+    steps:
+      - name: Notify telegram start
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_APP_BOT_TOKEN }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d parse_mode="HTML" \
+          --data-urlencode text="Hey ${{ github.actor }}, đang reload env cho API backend nha ♻️
+          ♻️ <b>Env Reload Started</b>
+
+          👤 Author:
+          ${{ github.actor }}
+
+          🔎 Logs:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Recreate containers with updated env
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+
+            IMAGE_NAME=${{ env.IMAGE_NAME }}
+            CONTAINER_NAME=${{ env.CONTAINER_NAME }}
+            WORKER_CONTAINER_NAME=${{ env.WORKER_CONTAINER_NAME }}
+            DOCKER_NETWORK=${{ env.DOCKER_NETWORK }}
+            ENV_FILE=${{ env.ENV_FILE }}
+            UPLOADS_VOLUME=${{ env.UPLOADS_VOLUME }}
+            AVATARS_VOLUME=${{ env.AVATARS_VOLUME }}
+            RUN_MIGRATIONS=${{ inputs.run_migrations }}
+
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "Env file $ENV_FILE not found on server" >&2
+              exit 1
+            fi
+
+            docker network inspect "$DOCKER_NETWORK" > /dev/null 2>&1 || docker network create "$DOCKER_NETWORK"
+
+            # Reuse whatever image the running API container was started from, so
+            # this workflow never changes the deployed code — only the env.
+            RUNNING_IMAGE=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
+            IMAGE_TO_USE="${RUNNING_IMAGE:-$IMAGE_NAME:latest}"
+            echo "Using image: $IMAGE_TO_USE"
+
+            if [ "$RUN_MIGRATIONS" = "true" ]; then
+              docker run --rm \
+                --add-host=host.docker.internal:172.19.0.1 \
+                --network "$DOCKER_NETWORK" \
+                --env-file "$ENV_FILE" \
+                "$IMAGE_TO_USE" \
+                pnpm exec prisma migrate deploy
+            fi
+
+            docker stop "$CONTAINER_NAME" || true
+            docker rm "$CONTAINER_NAME" || true
+            docker stop "$WORKER_CONTAINER_NAME" || true
+            docker rm "$WORKER_CONTAINER_NAME" || true
+
+            docker run -d \
+              --name "$CONTAINER_NAME" \
+              --add-host=host.docker.internal:172.19.0.1 \
+              --network "$DOCKER_NETWORK" \
+              --restart unless-stopped \
+              -p 127.0.0.1:3005:3000 \
+              --env-file "$ENV_FILE" \
+              -v "$UPLOADS_VOLUME":/app/uploads \
+              -v "$AVATARS_VOLUME":/app/assets/avatars \
+              "$IMAGE_TO_USE"
+
+            docker run -d \
+              --name "$WORKER_CONTAINER_NAME" \
+              --add-host=host.docker.internal:172.19.0.1 \
+              --network "$DOCKER_NETWORK" \
+              --restart unless-stopped \
+              --env-file "$ENV_FILE" \
+              -v "$UPLOADS_VOLUME":/app/uploads \
+              -v "$AVATARS_VOLUME":/app/assets/avatars \
+              "$IMAGE_TO_USE" \
+              node dist/worker.js
+
+      - name: Notify telegram success
+        if: success()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_APP_BOT_TOKEN }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d parse_mode="HTML" \
+          --data-urlencode text="Hey ${{ github.actor }}, env backend đã được reload xong nha ✅
+          ✅ <b>Env Reload Success</b>
+
+          👤 Author:
+          ${{ github.actor }}
+
+          🔎 Logs:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Notify telegram fail
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_APP_BOT_TOKEN }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d parse_mode="HTML" \
+          --data-urlencode text="Hey ${{ github.actor }}, reload env backend lỗi rồi, vô check nha 😅
+          ❌ <b>Env Reload Failed</b>
+
+          👤 Author:
+          ${{ github.actor }}
+
+          🔎 Logs:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

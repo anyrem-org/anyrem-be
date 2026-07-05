@@ -8,10 +8,12 @@ export class MailService {
   private readonly from: string;
   constructor(config: ConfigService) {
     this.from = config.getOrThrow("SMTP_FROM");
+    const port = Number(config.get("SMTP_PORT", 587));
     this.transporter = nodemailer.createTransport({
       host: config.getOrThrow("SMTP_HOST"),
-      port: Number(config.get("SMTP_PORT", 587)),
-      secure: false,
+      port,
+      // Port 465 uses implicit TLS; 587/25 upgrade via STARTTLS.
+      secure: port === 465,
       auth: config.get("SMTP_USER")
         ? { user: config.get("SMTP_USER"), pass: config.get("SMTP_PASS") }
         : undefined,
