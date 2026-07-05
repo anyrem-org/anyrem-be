@@ -10,7 +10,6 @@ export const SETTING_TYPES = {
 export const SETTING_KEYS = {
   APPEARANCE: {
     THEME: "theme",
-    COMPACT_DENSITY: "compact_density",
     SHOW_ACTIVITY_PANEL: "show_activity_panel",
   },
   REGIONAL: { LOCALE: "locale", TIMEZONE: "timezone" },
@@ -89,13 +88,6 @@ export const SETTING_REGISTRY = [
     key: SETTING_KEYS.APPEARANCE.THEME,
     defaultValue: THEMES.LIGHT,
     validate: oneOf(Object.values(THEMES)),
-    secret: false,
-  },
-  {
-    type: SETTING_TYPES.APPEARANCE,
-    key: SETTING_KEYS.APPEARANCE.COMPACT_DENSITY,
-    defaultValue: false,
-    validate: bool,
     secret: false,
   },
   {
