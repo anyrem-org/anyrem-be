@@ -14,7 +14,7 @@ import { TOKEN_TTL } from "../../common/constants/app.constants.js";
 import { CryptoService } from "../../common/crypto/crypto.service.js";
 import { MailService } from "../../infrastructure/mail/mail.service.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
-import { normalizeEmail, validEmail } from "./auth.helpers.js";
+import { normalizeEmail, validEmail, apiUrl } from "./auth.helpers.js";
 import { OAuthCodeService } from "./oauth-code.service.js";
 
 @Injectable()
@@ -94,7 +94,7 @@ export class AuthService {
     await this.mail.send(
       email,
       "Verify your Remember Anything email",
-      `${this.config.getOrThrow("APP_URL")}/auth/verify-email?token=${encodeURIComponent(token)}`,
+      apiUrl(this.config.getOrThrow("APP_URL"), `/auth/verify-email?token=${encodeURIComponent(token)}`),
     );
     return { id: user.id, email: user.email, verificationRequired: true };
   }
@@ -137,7 +137,7 @@ export class AuthService {
       await this.mail.send(
         user.email,
         "Verify your Remember Anything email",
-        `${this.config.getOrThrow("APP_URL")}/auth/verify-email?token=${encodeURIComponent(token)}`,
+        apiUrl(this.config.getOrThrow("APP_URL"), `/auth/verify-email?token=${encodeURIComponent(token)}`),
       );
     }
     return { accepted: true };
@@ -224,7 +224,7 @@ export class AuthService {
       await this.mail.send(
         user.email,
         "Reset your Remember Anything password",
-        `${this.config.getOrThrow("APP_URL")}/auth/reset-password?token=${encodeURIComponent(token)}`,
+        apiUrl(this.config.getOrThrow("APP_URL"), `/auth/reset-password?token=${encodeURIComponent(token)}`),
       );
     }
     return { accepted: true };
@@ -265,7 +265,7 @@ export class AuthService {
     const state = await this.codes.create("google-state", "valid", 600);
     const params = new URLSearchParams({
       client_id: this.config.getOrThrow("GOOGLE_CLIENT_ID"),
-      redirect_uri: `${this.config.getOrThrow("APP_URL")}/auth/google/callback`,
+      redirect_uri: apiUrl(this.config.getOrThrow("APP_URL"), "/auth/google/callback"),
       response_type: "code",
       scope: "openid email profile",
       state,
@@ -285,7 +285,7 @@ export class AuthService {
         code,
         client_id: this.config.getOrThrow("GOOGLE_CLIENT_ID"),
         client_secret: this.config.getOrThrow("GOOGLE_CLIENT_SECRET"),
-        redirect_uri: `${this.config.getOrThrow("APP_URL")}/auth/google/callback`,
+        redirect_uri: apiUrl(this.config.getOrThrow("APP_URL"), "/auth/google/callback"),
         grant_type: "authorization_code",
       }),
     });
