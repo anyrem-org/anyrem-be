@@ -9,20 +9,20 @@ import {
   Put,
   UseGuards,
 } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   AuthGuard,
   CurrentUser,
   type AuthUser,
 } from "../../common/auth/auth.guard.js";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   SETTING_KEYS,
   SETTING_TYPES,
 } from "../../common/constants/settings.constants.js";
 import { TelegramService } from "../../infrastructure/telegram/telegram.service.js";
+import { TelegramConfigDto, UpdateSettingsDto } from "./settings.dto.js";
 import { SettingsService } from "./settings.service.js";
 import type { SettingUpdate } from "./settings.types.js";
-import { TelegramConfigDto, UpdateSettingsDto } from "./settings.dto.js";
 
 @Controller("settings")
 @UseGuards(AuthGuard)
@@ -98,5 +98,11 @@ export class SettingsController {
   @Delete("telegram") async removeTelegram(@CurrentUser() user: AuthUser) {
     await this.settings.deleteTelegram(user.id);
     return { configured: false };
+  }
+
+  @Get("date-time-format") getDateTimeFormatList(
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.settings.getDateTimeFormatList(user.id);
   }
 }
