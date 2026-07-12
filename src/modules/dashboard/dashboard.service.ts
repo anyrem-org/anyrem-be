@@ -3,7 +3,10 @@ import {
   SETTING_KEYS,
   SETTING_TYPES,
 } from "../../common/constants/settings.constants.js";
-import { localDateInfo } from "../../common/date/timezone.js";
+import {
+  getCurrentDateTime,
+  localDateInfo,
+} from "../../common/date/timezone.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { SettingsService } from "../settings/settings.service.js";
 
@@ -80,8 +83,10 @@ export class DashboardService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5),
       recapPreview: recap ?? { localDate: day.key, noteCount: today.length },
+      greeting: this.getGreetingText(timezone),
     };
   }
+
   async graph(userId: string) {
     const [categories, notes] = await Promise.all([
       this.prisma.category.findMany({
@@ -139,6 +144,20 @@ export class DashboardService {
         ),
       ],
     };
+  }
+
+  private getGreetingText(timeZone: string) {
+    const current = getCurrentDateTime(timeZone).hour;
+
+    if (current < 12) {
+      return "Good morning";
+    }
+
+    if (current < 18) {
+      return "Good afternoon";
+    }
+
+    return "Good evening";
   }
 }
 
