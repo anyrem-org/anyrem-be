@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
+import { DateTime } from "luxon";
 import {
   SETTING_DEFAULTS,
   SETTING_KEYS,
@@ -113,6 +114,84 @@ export class SettingsService {
   deleteTelegram(userId: string) {
     return this.prisma.userSetting.deleteMany({
       where: { userId, type: SETTING_TYPES.TELEGRAM },
+    });
+  }
+
+  async getDateTimeFormatList(userId: string) {
+    const all = await this.all(userId);
+
+    const timeZone = all[SETTING_TYPES.REGIONAL][
+      SETTING_KEYS.REGIONAL.TIMEZONE
+    ] as string;
+
+    const locale = all[SETTING_TYPES.REGIONAL][
+      SETTING_KEYS.REGIONAL.LOCALE
+    ] as string;
+
+    // https://github.com/moment/luxon/blob/master/docs/formatting.md
+    const list = [
+      {
+        label: "",
+        value: "DATETIME_SHORT",
+      },
+      {
+        label: "",
+        value: "DATETIME_MED",
+      },
+      {
+        label: "",
+        value: "DATETIME_MED_WITH_WEEKDAY",
+      },
+      {
+        label: "",
+        value: "DATETIME_FULL",
+      },
+      {
+        label: "",
+        value: "DATETIME_SHORT_WITH_SECONDS",
+      },
+      {
+        label: "",
+        value: "DATETIME_MED_WITH_SECONDS",
+      },
+      {
+        label: "",
+        value: "DATETIME_FULL_WITH_SECONDS",
+      },
+      {
+        label: "",
+        value: "DATE_SHORT",
+      },
+      {
+        label: "",
+        value: "DATE_MED",
+      },
+      {
+        label: "",
+        value: "DATE_MED_WITH_WEEKDAY",
+      },
+      {
+        label: "",
+        value: "DATE_FULL",
+      },
+      {
+        label: "",
+        value: "DATE_HUGE",
+      },
+    ];
+
+    return list.map((item) => {
+      return {
+        label: DateTime.local({
+          zone: timeZone,
+          locale: locale,
+        }).toLocaleString(
+          DateTime[
+            item.value as keyof typeof DateTime
+          ] as Intl.DateTimeFormatOptions,
+        ),
+        value: item.value,
+      };
     });
   }
 }
