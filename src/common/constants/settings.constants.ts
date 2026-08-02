@@ -12,7 +12,11 @@ export const SETTING_KEYS = {
     THEME: "theme",
     SHOW_ACTIVITY_PANEL: "show_activity_panel",
   },
-  REGIONAL: { TIMEZONE: "timezone" },
+  REGIONAL: {
+    TIMEZONE: "timezone",
+    DATE_TIME_FORMAT: "date_time_format",
+    LOCALE: "locale",
+  },
   SEARCH: {
     SAVE_HISTORY: "save_history",
   },
@@ -95,6 +99,20 @@ export const SETTING_REGISTRY = [
     key: SETTING_KEYS.REGIONAL.TIMEZONE,
     defaultValue: "Asia/Ho_Chi_Minh",
     validate: isTimezone,
+    secret: false,
+  },
+  {
+    type: SETTING_TYPES.REGIONAL,
+    key: SETTING_KEYS.REGIONAL.DATE_TIME_FORMAT,
+    defaultValue: "DATETIME_SHORT_WITH_SECONDS",
+    validate: string,
+    secret: false,
+  },
+  {
+    type: SETTING_TYPES.REGIONAL,
+    key: SETTING_KEYS.REGIONAL.LOCALE,
+    defaultValue: "vi-VN",
+    validate: string,
     secret: false,
   },
   {
