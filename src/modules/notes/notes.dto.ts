@@ -6,7 +6,6 @@ import {
   IsDateString,
   IsIn,
   IsInt,
-  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -66,21 +65,18 @@ export class NoteInputDto {
   @ApiPropertyOptional({ example: "Electron offline-first" })
   title?: string;
   @IsOptional()
-  @IsObject()
+  @IsArray()
   @ApiPropertyOptional({
-    type: "object",
-    additionalProperties: true,
-    example: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [{ type: "text", text: "Memory content" }],
-        },
-      ],
-    },
+    type: "array",
+    example: [
+      { type: "heading", props: { level: 1 }, content: "Memory title" },
+    ],
   })
   contentJson?: DocNode;
+  @IsOptional()
+  @IsIn(["BLOCKNOTE"])
+  @ApiPropertyOptional({ enum: ["BLOCKNOTE"] })
+  editorFormat?: "BLOCKNOTE";
   @IsOptional()
   @IsArray()
   @IsUUID("4", { each: true })

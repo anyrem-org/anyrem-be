@@ -4,3 +4,4 @@ dist
 coverage
 assets/avatars/*.png
 !assets/avatars/.gitkeep
+uploads/*

@@ -34,6 +34,8 @@
     "search:reindex": "tsx scripts/reindex-search.ts"
   },
   "dependencies": {
+    "@blocknote/core": "^0.53.0",
+    "@blocknote/server-util": "^0.53.0",
     "@dicebear/core": "^10.2.0",
     "@dicebear/styles": "^10.2.0",
     "@nestjs/common": "^11.1.9",
@@ -54,7 +56,9 @@
     "meilisearch": "^0.54.0",
     "nodemailer": "^7.0.10",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "y-prosemirror": "^1.3.7",
+    "y-protocols": "^1.0.7"
   },
   "devDependencies": {
     "@nestjs/cli": "11.0.23",

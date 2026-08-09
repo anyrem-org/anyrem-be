@@ -93,7 +93,10 @@ model User {
   histories       SearchHistory[]
   summaries       DailySummary[]
   deliveries      NotificationDelivery[]
+  <<<<<<< HEAD
   inboxes         Inbox[]
+  =======
+  >>>>>>> ANYREM-29
 
   @@map("users")
 }
@@ -159,22 +162,23 @@ model UserSetting {
 }
 
 model Note {
-  id             String          @id @default(uuid()) @db.Uuid
-  userId         String          @db.Uuid
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title          String          @db.VarChar(300)
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String           @db.VarChar(300)
   contentJson    Json
   contentText    String
   contentHtml    String?
-  pinned         Boolean         @default(false)
-  lastOpenedAt   DateTime?       @db.Timestamptz(3)
-  archivedAt     DateTime?       @db.Timestamptz(3)
-  deletedAt      DateTime?       @db.Timestamptz(3)
-  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+  editorFormat   NoteEditorFormat @default(TIPTAP)
+  pinned         Boolean          @default(false)
+  lastOpenedAt   DateTime?        @db.Timestamptz(3)
+  archivedAt     DateTime?        @db.Timestamptz(3)
+  deletedAt      DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
   categories     NoteCategory[]
-  relationsLeft  NoteRelation[]  @relation("RelationLeft")
-  relationsRight NoteRelation[]  @relation("RelationRight")
+  relationsLeft  NoteRelation[]   @relation("RelationLeft")
+  relationsRight NoteRelation[]   @relation("RelationRight")
   activities     ActivityEvent[]
 
   @@unique([id, userId])
@@ -182,6 +186,11 @@ model Note {
   @@index([userId, updatedAt(sort: Desc)])
   @@index([userId, lastOpenedAt(sort: Desc)])
   @@map("notes")
+}
+
+enum NoteEditorFormat {
+  TIPTAP
+  BLOCKNOTE
 }
 
 model Category {
