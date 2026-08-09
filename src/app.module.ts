@@ -15,6 +15,8 @@ import { InfrastructureModule } from "./infrastructure/infrastructure.module.js"
 import { PrismaModule } from "./infrastructure/prisma/prisma.module.js";
 import { WorkerRuntime } from "./worker.runtime.js";
 import { HealthController } from "./health.controller.js";
+import { InboxesModule } from "./modules/inboxes/inboxes.module.js";
+import { InboxesService } from "./modules/inboxes/inboxes.service.js";
 
 @Module({
   imports: [
@@ -32,8 +34,9 @@ import { HealthController } from "./health.controller.js";
     DashboardModule,
     UploadsModule,
     RecapModule,
+    InboxesModule,
   ],
   controllers: [HealthController],
-  providers: [WorkerRuntime],
+  providers: [WorkerRuntime, InboxesService],
 })
 export class AppModule {}
