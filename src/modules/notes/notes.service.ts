@@ -3,11 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { ActivityType, NoteRelationType, Prisma } from "@prisma/client";
+import {
+  ActivityType,
+  NoteEditorFormat,
+  NoteRelationType,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { QueueService } from "../../infrastructure/queue/queue.service.js";
 import { UploadsService } from "../uploads/uploads.service.js";
-import { htmlOf, imagePathsOf, textOf, unique } from "./notes.helpers.js";
+import {
+  blockNoteHtmlOf,
+  imagePathsOf,
+  textOf,
+  titleOf,
+  unique,
+} from "./notes.helpers.js";
 import {
   NOTE_SORTS,
   type NoteInput,
@@ -106,9 +117,12 @@ export class NotesService {
     return note;
   }
   async create(userId: string, input: NoteInput) {
-    if (!input.title?.trim() || !input.contentJson) {
+    if (!input.contentJson) {
       throw new BadRequestException("title and contentJson are required");
     }
+    const title = titleOf(input.contentJson) || input.title?.trim();
+    if (!title)
+      throw new BadRequestException("title and contentJson are required");
 
     const categoryIds = unique(input.categoryIds);
     const relatedIds = await this.validateLinks(
@@ -121,10 +135,11 @@ export class NotesService {
       const note = await tx.note.create({
         data: {
           user: { connect: { id: userId } },
-          title: input.title!.trim(),
+          title,
           contentJson: input.contentJson as Prisma.InputJsonValue,
           contentText: textOf(input.contentJson!).trim(),
-          contentHtml: htmlOf(input.contentJson!),
+          contentHtml: await blockNoteHtmlOf(input.contentJson!),
+          editorFormat: NoteEditorFormat.BLOCKNOTE,
           pinned: input.pinned ?? false,
         },
       });
@@ -156,14 +171,21 @@ export class NotesService {
       return note;
     });
 
-    await this.uploads.syncNoteImages(userId, note.id, imagePathsOf(input.contentJson));
+    await this.uploads.syncNoteImages(
+      userId,
+      note.id,
+      imagePathsOf(input.contentJson),
+    );
     await this.queue.indexNote(note.id);
 
     return this.get(userId, note.id);
   }
 
   async update(userId: string, id: string, input: NoteInput) {
-    await this.get(userId, id);
+    const existing = await this.get(userId, id);
+    const title = input.contentJson
+      ? titleOf(input.contentJson) || input.title?.trim() || existing.title
+      : input.title?.trim();
     const categoryIds = unique(input.categoryIds);
     const relatedIds = await this.validateLinks(
       userId,
@@ -176,13 +198,16 @@ export class NotesService {
       await tx.note.update({
         where: { id },
         data: {
-          title: input.title?.trim(),
+          title,
           contentJson: input.contentJson as Prisma.InputJsonValue | undefined,
           contentText: input.contentJson
             ? textOf(input.contentJson).trim()
             : undefined,
           contentHtml: input.contentJson
-            ? htmlOf(input.contentJson)
+            ? await blockNoteHtmlOf(input.contentJson)
+            : undefined,
+          editorFormat: input.contentJson
+            ? NoteEditorFormat.BLOCKNOTE
             : undefined,
           pinned: input.pinned,
         },
@@ -220,7 +245,11 @@ export class NotesService {
       });
     });
     if (input.contentJson)
-      await this.uploads.syncNoteImages(userId, id, imagePathsOf(input.contentJson));
+      await this.uploads.syncNoteImages(
+        userId,
+        id,
+        imagePathsOf(input.contentJson),
+      );
     await this.queue.indexNote(id);
     return this.get(userId, id);
   }

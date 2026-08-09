@@ -1,12 +1,8 @@
-export type DocNode = {
-  type?: string;
-  text?: string;
-  attrs?: Record<string, unknown>;
-  content?: DocNode[];
-};
+export type DocNode = Record<string, unknown> | Record<string, unknown>[];
 export type NoteInput = {
   title?: string;
   contentJson?: DocNode;
+  editorFormat?: "BLOCKNOTE";
   categoryIds?: string[];
   relatedIds?: string[];
   pinned?: boolean;

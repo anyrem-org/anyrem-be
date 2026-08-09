@@ -14,18 +14,22 @@ enum UserStatus {
   SUSPENDED
   DELETED
 }
+
 enum AuthProvider {
   EMAIL
   GOOGLE
 }
+
 enum AuthTokenType {
   VERIFY_EMAIL
   RESET_PASSWORD
 }
+
 enum NoteRelationType {
   MANUAL
   SIMILAR
 }
+
 enum ActivityType {
   CREATED
   VIEWED
@@ -33,10 +37,12 @@ enum ActivityType {
   PINNED
   UNPINNED
 }
+
 enum NotificationProvider {
   EMAIL
   TELEGRAM
 }
+
 enum DeliveryStatus {
   PENDING
   SENT
@@ -52,11 +58,12 @@ model AvatarCatalog {
   styleName String   @map("style_name") @db.VarChar(100)
   seed      String   @db.VarChar(120)
   filePath  String   @map("file_path") @db.VarChar(255)
-  sortOrder Int      @map("sort_order") @default(0)
-  isActive  Boolean  @map("is_active") @default(true)
-  createdAt DateTime @map("created_at") @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @map("updated_at") @updatedAt @db.Timestamptz(3)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   users     User[]
+
   @@unique([provider, version, style, seed])
   @@index([style])
   @@index([isActive])
@@ -65,16 +72,16 @@ model AvatarCatalog {
 }
 
 model User {
-  id              String       @id @default(uuid()) @db.Uuid
-  email           String       @unique @db.Citext
-  emailVerifiedAt DateTime?    @db.Timestamptz(3)
-  name            String       @db.VarChar(120)
-  avatarId        String?      @db.Uuid
-  avatar          AvatarCatalog? @relation(fields: [avatarId], references: [id], onDelete: SetNull)
-  status          UserStatus   @default(ACTIVE)
-  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
-  deletedAt       DateTime?    @db.Timestamptz(3)
+  id              String                 @id @default(uuid()) @db.Uuid
+  email           String                 @unique @db.Citext
+  emailVerifiedAt DateTime?              @db.Timestamptz(3)
+  name            String                 @db.VarChar(120)
+  avatarId        String?                @db.Uuid
+  avatar          AvatarCatalog?         @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+  status          UserStatus             @default(ACTIVE)
+  createdAt       DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime               @updatedAt @db.Timestamptz(3)
+  deletedAt       DateTime?              @db.Timestamptz(3)
   accounts        AuthAccount[]
   authTokens      AuthToken[]
   sessions        RefreshSession[]
@@ -86,6 +93,7 @@ model User {
   histories       SearchHistory[]
   summaries       DailySummary[]
   deliveries      NotificationDelivery[]
+
   @@map("users")
 }
 
@@ -98,6 +106,7 @@ model AuthAccount {
   passwordHash      String?
   createdAt         DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
+
   @@unique([provider, providerAccountId])
   @@unique([userId, provider])
   @@map("auth_accounts")
@@ -112,6 +121,7 @@ model AuthToken {
   expiresAt DateTime      @db.Timestamptz(3)
   usedAt    DateTime?     @db.Timestamptz(3)
   createdAt DateTime      @default(now()) @db.Timestamptz(3)
+
   @@index([userId, type])
   @@map("auth_tokens")
 }
@@ -126,6 +136,7 @@ model RefreshSession {
   revokedAt        DateTime? @db.Timestamptz(3)
   lastUsedAt       DateTime  @default(now()) @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+
   @@index([userId, revokedAt])
   @@map("refresh_sessions")
 }
@@ -139,6 +150,7 @@ model UserSetting {
   value     Json
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
   @@unique([userId, type, key])
   @@index([userId, type])
   @@index([type, key, userId])
@@ -146,23 +158,25 @@ model UserSetting {
 }
 
 model Note {
-  id             String    @id @default(uuid()) @db.Uuid
-  userId         String    @db.Uuid
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title          String    @db.VarChar(300)
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String           @db.VarChar(300)
   contentJson    Json
   contentText    String
   contentHtml    String?
-  pinned         Boolean   @default(false)
-  lastOpenedAt   DateTime? @db.Timestamptz(3)
-  archivedAt     DateTime? @db.Timestamptz(3)
-  deletedAt      DateTime? @db.Timestamptz(3)
-  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  editorFormat   NoteEditorFormat @default(TIPTAP)
+  pinned         Boolean          @default(false)
+  lastOpenedAt   DateTime?        @db.Timestamptz(3)
+  archivedAt     DateTime?        @db.Timestamptz(3)
+  deletedAt      DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
   categories     NoteCategory[]
-  relationsLeft  NoteRelation[] @relation("RelationLeft")
-  relationsRight NoteRelation[] @relation("RelationRight")
+  relationsLeft  NoteRelation[]   @relation("RelationLeft")
+  relationsRight NoteRelation[]   @relation("RelationRight")
   activities     ActivityEvent[]
+
   @@unique([id, userId])
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, updatedAt(sort: Desc)])
@@ -170,17 +184,23 @@ model Note {
   @@map("notes")
 }
 
+enum NoteEditorFormat {
+  TIPTAP
+  BLOCKNOTE
+}
+
 model Category {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String   @db.Citext
-  description String?  @db.VarChar(500)
-  color       String   @db.Char(7)
-  icon        String?  @db.VarChar(40)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @db.Uuid
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String         @db.Citext
+  description String?        @db.VarChar(500)
+  color       String         @db.Char(7)
+  icon        String?        @db.VarChar(40)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
   notes       NoteCategory[]
+
   @@unique([id, userId])
   @@unique([userId, name])
   @@map("categories")
@@ -193,6 +213,7 @@ model NoteCategory {
   note       Note     @relation(fields: [noteId, userId], references: [id, userId], onDelete: Cascade)
   category   Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
   @@id([noteId, categoryId])
   @@index([categoryId, noteId])
   @@map("note_categories")
@@ -210,6 +231,7 @@ model NoteRelation {
   score       Float?
   reason      String?          @db.VarChar(255)
   createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+
   @@unique([leftNoteId, rightNoteId, type])
   @@index([userId, leftNoteId])
   @@index([userId, rightNoteId])
@@ -224,6 +246,7 @@ model ActivityEvent {
   note       Note         @relation(fields: [noteId, userId], references: [id, userId], onDelete: Cascade)
   type       ActivityType
   occurredAt DateTime     @default(now()) @db.Timestamptz(3)
+
   @@index([userId, occurredAt(sort: Desc)])
   @@index([userId, noteId, occurredAt(sort: Desc)])
   @@map("activity_events")
@@ -253,41 +276,44 @@ model SearchHistory {
   keywordNormalized String   @db.VarChar(300)
   searchCount       Int      @default(1)
   lastSearchedAt    DateTime @default(now()) @db.Timestamptz(3)
+
   @@unique([userId, keywordNormalized])
   @@index([userId, lastSearchedAt(sort: Desc)])
   @@map("search_histories")
 }
 
 model DailySummary {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @db.Uuid
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  localDate    DateTime @db.Date
-  timezone     String   @db.VarChar(64)
-  contentJson  Json
-  contentText  String
-  noteCount    Int
-  generatedAt  DateTime @default(now()) @db.Timestamptz(3)
-  deliveries   NotificationDelivery[]
+  id          String                 @id @default(uuid()) @db.Uuid
+  userId      String                 @db.Uuid
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate   DateTime               @db.Date
+  timezone    String                 @db.VarChar(64)
+  contentJson Json
+  contentText String
+  noteCount   Int
+  generatedAt DateTime               @default(now()) @db.Timestamptz(3)
+  deliveries  NotificationDelivery[]
+
   @@unique([userId, localDate])
   @@index([userId, localDate(sort: Desc)])
   @@map("daily_summaries")
 }
 
 model NotificationDelivery {
-  id             BigInt               @id @default(autoincrement())
-  dailySummaryId String               @db.Uuid
-  summary        DailySummary         @relation(fields: [dailySummaryId], references: [id], onDelete: Cascade)
-  userId         String               @db.Uuid
-  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider       NotificationProvider
-  recipientMasked String              @db.VarChar(255)
-  status         DeliveryStatus       @default(PENDING)
-  attemptCount   Int                  @default(0)
-  errorMessage   String?
-  sentAt         DateTime?            @db.Timestamptz(3)
-  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime             @updatedAt @db.Timestamptz(3)
+  id              BigInt               @id @default(autoincrement())
+  dailySummaryId  String               @db.Uuid
+  summary         DailySummary         @relation(fields: [dailySummaryId], references: [id], onDelete: Cascade)
+  userId          String               @db.Uuid
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        NotificationProvider
+  recipientMasked String               @db.VarChar(255)
+  status          DeliveryStatus       @default(PENDING)
+  attemptCount    Int                  @default(0)
+  errorMessage    String?
+  sentAt          DateTime?            @db.Timestamptz(3)
+  createdAt       DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
+
   @@unique([dailySummaryId, provider])
   @@index([status, updatedAt])
   @@index([userId, createdAt(sort: Desc)])
