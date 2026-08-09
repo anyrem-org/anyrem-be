@@ -93,10 +93,7 @@ model User {
   histories       SearchHistory[]
   summaries       DailySummary[]
   deliveries      NotificationDelivery[]
-  <<<<<<< HEAD
   inboxes         Inbox[]
-  =======
-  >>>>>>> ANYREM-29
 
   @@map("users")
 }
