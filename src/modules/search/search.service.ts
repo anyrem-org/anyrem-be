@@ -8,6 +8,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { MeiliService } from "../../infrastructure/search/meili.service.js";
 import { SettingsService } from "../settings/settings.service.js";
 import { normalizeSearch } from "./search.helpers.js";
+import { globalSearchVisibilityWhere } from "./search.visibility.js";
 import type { SearchParams } from "./search.types.js";
 
 @Injectable()
@@ -31,6 +32,7 @@ export class SearchService {
         userId,
         deletedAt: null,
         pinned: true,
+        ...globalSearchVisibilityWhere(),
         categories: params.categoryId
           ? { some: { categoryId: params.categoryId } }
           : undefined,

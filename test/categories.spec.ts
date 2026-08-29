@@ -11,7 +11,8 @@ describe("CategoriesService.remove", () => {
       },
       noteCategory: { count: vi.fn().mockResolvedValue(2) },
     };
-    const service = new CategoriesService(prisma as never);
+    const queue = { reindexCategoryNotes: vi.fn() };
+    const service = new CategoriesService(prisma as never, queue as never);
 
     await expect(
       service.remove("user-id", "category-id"),
@@ -40,7 +41,8 @@ describe("CategoriesService.list", () => {
         ]),
       },
     };
-    const service = new CategoriesService(prisma as never);
+    const queue = { reindexCategoryNotes: vi.fn() };
+    const service = new CategoriesService(prisma as never, queue as never);
 
     await expect(
       service.list("user-id", { q: "desk", sort: "note_count_desc", limit: 1 }),

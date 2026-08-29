@@ -3,6 +3,7 @@ export type CategoryInput = {
   description?: string;
   color?: string;
   icon?: string;
+  showInGlobalSearch?: boolean;
 };
 
 export const CATEGORY_SORTS = {

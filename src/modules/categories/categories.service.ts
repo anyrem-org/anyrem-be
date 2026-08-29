@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
+import { QueueService } from "../../infrastructure/queue/queue.service.js";
 import {
   CATEGORY_SORTS,
   type CategoryInput,
@@ -17,7 +18,10 @@ const validColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value);
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly queue: QueueService,
+  ) {}
   async list(userId: string, query: CategoryListQuery = {}) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -88,6 +92,7 @@ export class CategoriesService {
         description: input.description?.trim(),
         color: input.color,
         icon: input.icon,
+        showInGlobalSearch: input.showInGlobalSearch ?? true,
       },
     });
   }
@@ -96,15 +101,25 @@ export class CategoriesService {
     if (!row) throw new NotFoundException();
     if (input.color && !validColor(input.color))
       throw new BadRequestException("Invalid color");
-    return this.prisma.category.update({
+    const updated = await this.prisma.category.update({
       where: { id },
       data: {
         name: input.name?.trim(),
         description: input.description?.trim(),
         color: input.color,
         icon: input.icon,
+        showInGlobalSearch: input.showInGlobalSearch,
       },
     });
+
+    if (
+      input.showInGlobalSearch !== undefined &&
+      input.showInGlobalSearch !== row.showInGlobalSearch
+    ) {
+      await this.queue.reindexCategoryNotes(id);
+    }
+
+    return updated;
   }
   async remove(userId: string, id: string) {
     const [category, usageCount] = await Promise.all([

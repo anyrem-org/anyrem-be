@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -56,4 +57,8 @@ export class CategoryInputDto {
   @MaxLength(40)
   @ApiPropertyOptional({ example: "Code2" })
   icon?: string;
+  @IsOptional()
+  @IsBoolean()
+  @ApiPropertyOptional({ default: true })
+  showInGlobalSearch?: boolean;
 }
