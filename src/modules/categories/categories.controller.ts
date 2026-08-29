@@ -15,7 +15,7 @@ import {
   CurrentUser,
   type AuthUser,
 } from "../../common/auth/auth.guard.js";
-import { CategoryInputDto } from "./categories.dto.js";
+import { CategoryInputDto, CategoryListQueryDto } from "./categories.dto.js";
 import { CategoriesService } from "./categories.service.js";
 import { NoteListQueryDto } from "../notes/notes.dto.js";
 import { NotesService } from "../notes/notes.service.js";
@@ -29,8 +29,11 @@ export class CategoriesController {
     private readonly categories: CategoriesService,
     private readonly notes: NotesService,
   ) {}
-  @Get() list(@CurrentUser() user: AuthUser) {
-    return this.categories.list(user.id);
+  @Get() list(
+    @CurrentUser() user: AuthUser,
+    @Query() query: CategoryListQueryDto,
+  ) {
+    return this.categories.list(user.id, query);
   }
   @Get(":id") get(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.categories.get(user.id, id);
@@ -58,11 +61,10 @@ export class CategoriesController {
     return this.categories.update(user.id, id, body);
   }
   @Delete(":id")
-  @ApiConflictResponse({ description: "Category is still used by one or more memories." })
-  remove(
-    @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
-  ) {
+  @ApiConflictResponse({
+    description: "Category is still used by one or more memories.",
+  })
+  remove(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.categories.remove(user.id, id);
   }
 }

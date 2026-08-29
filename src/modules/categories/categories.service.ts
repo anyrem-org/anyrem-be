@@ -6,23 +6,65 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
-import type { CategoryInput } from "./categories.types.js";
+import {
+  CATEGORY_SORTS,
+  type CategoryInput,
+  type CategoryListQuery,
+  type CategorySort,
+} from "./categories.types.js";
 
 const validColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value);
 
 @Injectable()
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
-  list(userId: string) {
-    return this.prisma.category.findMany({
-      where: { userId },
+  async list(userId: string, query: CategoryListQuery = {}) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const q = query.q?.trim();
+    const rows = await this.prisma.category.findMany({
+      where: {
+        userId,
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q, mode: "insensitive" } },
+                { description: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
       include: {
         _count: {
           select: { notes: { where: { note: { deletedAt: null } } } },
         },
       },
-      orderBy: { name: "asc" },
     });
+    const items = rows.sort((left, right) =>
+      this.compare(left, right, query.sort ?? CATEGORY_SORTS.UPDATED_DESC),
+    );
+    const total = items.length;
+
+    return {
+      items: items.slice((page - 1) * limit, page * limit),
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+  private compare(
+    left: { updatedAt: Date; name: string; _count: { notes: number } },
+    right: { updatedAt: Date; name: string; _count: { notes: number } },
+    sort: CategorySort,
+  ) {
+    const direction = sort.endsWith("_asc") ? 1 : -1;
+    const value = sort.startsWith("note_count")
+      ? left._count.notes - right._count.notes
+      : left.updatedAt.getTime() - right.updatedAt.getTime();
+    return value === 0
+      ? left.name.localeCompare(right.name)
+      : value * direction;
   }
   async get(userId: string, id: string) {
     const row = await this.prisma.category.findFirst({
