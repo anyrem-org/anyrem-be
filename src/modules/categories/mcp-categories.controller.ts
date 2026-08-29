@@ -12,7 +12,10 @@ export class McpCategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 
   @Get()
-  list(@McpCurrentUser() user: McpAuthUser) {
-    return this.categories.list(user.id);
+  async list(@McpCurrentUser() user: McpAuthUser) {
+    const { items } = await this.categories.list(user.id, {
+      limit: Number.MAX_SAFE_INTEGER,
+    });
+    return items;
   }
 }

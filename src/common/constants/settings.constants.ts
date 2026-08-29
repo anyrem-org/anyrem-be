@@ -2,6 +2,7 @@ export const SETTING_TYPES = {
   APPEARANCE: "appearance",
   REGIONAL: "regional",
   SEARCH: "search",
+  CATEGORIES: "categories",
   QUICK_ACCESS: "quick_access",
   RECAP: "recap",
   TELEGRAM: "telegram",
@@ -19,6 +20,10 @@ export const SETTING_KEYS = {
   },
   SEARCH: {
     SAVE_HISTORY: "save_history",
+  },
+  CATEGORIES: {
+    OVERVIEW_VIEW: "overview_view",
+    DETAIL_VIEW: "detail_view",
   },
   QUICK_ACCESS: { SHORTCUTS: "shortcuts" },
   RECAP: {
@@ -42,11 +47,7 @@ export const THEMES = {
 } as const;
 export type SettingType = (typeof SETTING_TYPES)[keyof typeof SETTING_TYPES];
 export type SettingValue =
-  | string
-  | boolean
-  | number
-  | null
-  | Record<string, string>;
+  string | boolean | number | null | Record<string, string>;
 
 type Entry = {
   type: SettingType;
@@ -120,6 +121,20 @@ export const SETTING_REGISTRY = [
     key: SETTING_KEYS.SEARCH.SAVE_HISTORY,
     defaultValue: true,
     validate: bool,
+    secret: false,
+  },
+  {
+    type: SETTING_TYPES.CATEGORIES,
+    key: SETTING_KEYS.CATEGORIES.OVERVIEW_VIEW,
+    defaultValue: "card",
+    validate: oneOf(["card", "list"]),
+    secret: false,
+  },
+  {
+    type: SETTING_TYPES.CATEGORIES,
+    key: SETTING_KEYS.CATEGORIES.DETAIL_VIEW,
+    defaultValue: "card",
+    validate: oneOf(["card", "list"]),
     secret: false,
   },
   {
