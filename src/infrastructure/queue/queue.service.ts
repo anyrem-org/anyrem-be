@@ -36,6 +36,14 @@ export class QueueService implements OnModuleDestroy {
     );
   }
 
+  reindexCategoryNotes(categoryId: string) {
+    return this.search.add(
+      JOB_NAMES.REINDEX_CATEGORY_NOTES,
+      { categoryId },
+      { removeOnComplete: 100, removeOnFail: 100 },
+    );
+  }
+
   async onModuleDestroy() {
     await Promise.all([this.search.close(), this.recap.close()]);
   }

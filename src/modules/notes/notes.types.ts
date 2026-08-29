@@ -6,6 +6,7 @@ export type NoteInput = {
   categoryIds?: string[];
   relatedIds?: string[];
   pinned?: boolean;
+  showInGlobalSearch?: boolean;
 };
 
 export const NOTE_SORTS = {

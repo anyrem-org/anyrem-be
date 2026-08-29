@@ -2,6 +2,7 @@ import { Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { Worker } from "bullmq";
 import { JOB_NAMES, QUEUE_NAMES } from "./common/constants/app.constants.js";
 import { normalizeSearch } from "./modules/search/search.helpers.js";
+import { isShownInGlobalSearch } from "./modules/search/search.visibility.js";
 import { MeiliService } from "./infrastructure/search/meili.service.js";
 import { PrismaService } from "./infrastructure/prisma/prisma.module.js";
 import { QueueService } from "./infrastructure/queue/queue.service.js";
@@ -30,33 +31,20 @@ export class WorkerRuntime implements OnApplicationShutdown {
             return this.meili.notes.deleteDocument(job.data.noteId);
           }
 
-          const note = await this.prisma.note.findUnique({
-            where: { id: job.data.noteId },
-            include: { categories: { include: { category: true } } },
-          });
+          if (job.name === JOB_NAMES.REINDEX_CATEGORY_NOTES) {
+            const links = await this.prisma.noteCategory.findMany({
+              where: { categoryId: job.data.categoryId },
+              select: { noteId: true },
+            });
 
-          if (!note || note.deletedAt) {
-            return this.meili.notes.deleteDocument(job.data.noteId);
+            await Promise.all(
+              links.map((link) => this.syncNoteIndex(link.noteId)),
+            );
+
+            return;
           }
 
-          return this.meili.notes.addDocuments(
-            [
-              {
-                id: note.id,
-                userId: note.userId,
-                title: note.title,
-                titleNormalized: normalizeSearch(note.title),
-                contentText: note.contentText,
-                contentNormalized: normalizeSearch(note.contentText),
-                categoryIds: note.categories.map((x) => x.categoryId),
-                categoryNames: note.categories.map((x) => x.category.name),
-                pinned: note.pinned,
-                createdAt: Math.floor(note.createdAt.getTime() / 1000),
-                updatedAt: Math.floor(note.updatedAt.getTime() / 1000),
-              },
-            ],
-            { primaryKey: "id" },
-          );
+          return this.syncNoteIndex(job.data.noteId);
         },
         { connection: this.queues.connection },
       ),
@@ -87,6 +75,37 @@ export class WorkerRuntime implements OnApplicationShutdown {
     await tick();
     this.timer = setInterval(() => void tick(), 60_000);
   }
+
+  private async syncNoteIndex(noteId: string) {
+    const note = await this.prisma.note.findUnique({
+      where: { id: noteId },
+      include: { categories: { include: { category: true } } },
+    });
+
+    if (!note || note.deletedAt || !isShownInGlobalSearch(note)) {
+      return this.meili.notes.deleteDocument(noteId);
+    }
+
+    return this.meili.notes.addDocuments(
+      [
+        {
+          id: note.id,
+          userId: note.userId,
+          title: note.title,
+          titleNormalized: normalizeSearch(note.title),
+          contentText: note.contentText,
+          contentNormalized: normalizeSearch(note.contentText),
+          categoryIds: note.categories.map((x) => x.categoryId),
+          categoryNames: note.categories.map((x) => x.category.name),
+          pinned: note.pinned,
+          createdAt: Math.floor(note.createdAt.getTime() / 1000),
+          updatedAt: Math.floor(note.updatedAt.getTime() / 1000),
+        },
+      ],
+      { primaryKey: "id" },
+    );
+  }
+
   async onApplicationShutdown() {
     if (this.timer) clearInterval(this.timer);
     await Promise.all(this.workers.map((x) => x.close()));

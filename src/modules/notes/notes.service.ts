@@ -13,6 +13,10 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { QueueService } from "../../infrastructure/queue/queue.service.js";
 import { UploadsService } from "../uploads/uploads.service.js";
 import {
+  globalSearchVisibilityWhere,
+  isShownInGlobalSearch,
+} from "../search/search.visibility.js";
+import {
   blockNoteHtmlOf,
   imagePathsOf,
   textOf,
@@ -37,6 +41,18 @@ export class NotesService {
     relationsLeft: true,
     relationsRight: true,
   } as const;
+
+  private withGlobalSearchVisibility<
+    T extends {
+      showInGlobalSearch: boolean;
+      categories: Array<{ category: { showInGlobalSearch: boolean } }>;
+    },
+  >(note: T) {
+    return {
+      ...note,
+      effectiveShowInGlobalSearch: isShownInGlobalSearch(note),
+    };
+  }
   private async validateLinks(
     userId: string,
     categoryIds: string[],
@@ -64,6 +80,8 @@ export class NotesService {
   async list(userId: string, query: NoteListQuery = {}, categoryId?: string) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const resolvedCategoryId = categoryId ?? query.categoryId;
+    const isGlobalKeywordSearch = Boolean(query.q?.trim()) && !resolvedCategoryId;
     const where: Prisma.NoteWhereInput = {
       userId,
       deletedAt: null,
@@ -75,10 +93,9 @@ export class NotesService {
               lte: query.to ? new Date(query.to) : undefined,
             }
           : undefined,
-      categories:
-        categoryId || query.categoryId
+      categories: resolvedCategoryId
           ? {
-              some: { categoryId: categoryId ?? query.categoryId },
+              some: { categoryId: resolvedCategoryId },
             }
           : undefined,
       OR: query.q?.trim()
@@ -87,6 +104,7 @@ export class NotesService {
             { contentText: { contains: query.q.trim(), mode: "insensitive" } },
           ]
         : undefined,
+      ...(isGlobalKeywordSearch ? globalSearchVisibilityWhere() : {}),
     };
     const orderBy: Prisma.NoteOrderByWithRelationInput =
       query.sort === NOTE_SORTS.CREATED_DESC
@@ -104,7 +122,13 @@ export class NotesService {
       }),
       this.prisma.note.count({ where }),
     ]);
-    return { items, page, limit, total, totalPages: Math.ceil(total / limit) };
+    return {
+      items: items.map((note) => this.withGlobalSearchVisibility(note)),
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
   }
   async get(userId: string, id: string) {
     const note = await this.prisma.note.findFirst({
@@ -114,7 +138,7 @@ export class NotesService {
 
     if (!note) throw new NotFoundException();
 
-    return note;
+    return this.withGlobalSearchVisibility(note);
   }
   async create(userId: string, input: NoteInput) {
     if (!input.contentJson) {
@@ -141,6 +165,7 @@ export class NotesService {
           contentHtml: await blockNoteHtmlOf(input.contentJson!),
           editorFormat: NoteEditorFormat.BLOCKNOTE,
           pinned: input.pinned ?? false,
+          showInGlobalSearch: input.showInGlobalSearch ?? true,
         },
       });
 
@@ -210,6 +235,7 @@ export class NotesService {
             ? NoteEditorFormat.BLOCKNOTE
             : undefined,
           pinned: input.pinned,
+          showInGlobalSearch: input.showInGlobalSearch,
         },
       });
       if (input.categoryIds) {

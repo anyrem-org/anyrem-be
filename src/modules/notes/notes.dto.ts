@@ -91,6 +91,10 @@ export class NoteInputDto {
   @IsBoolean()
   @ApiPropertyOptional()
   pinned?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  @ApiPropertyOptional({ default: true })
+  showInGlobalSearch?: boolean;
 }
 export class PinNoteDto {
   @IsBoolean()

@@ -167,8 +167,9 @@ model Note {
   contentText    String
   contentHtml    String?
   editorFormat   NoteEditorFormat @default(TIPTAP)
-  pinned         Boolean          @default(false)
-  lastOpenedAt   DateTime?        @db.Timestamptz(3)
+  pinned              Boolean          @default(false)
+  showInGlobalSearch  Boolean          @default(true) @map("show_in_global_search")
+  lastOpenedAt        DateTime?        @db.Timestamptz(3)
   archivedAt     DateTime?        @db.Timestamptz(3)
   deletedAt      DateTime?        @db.Timestamptz(3)
   createdAt      DateTime         @default(now()) @db.Timestamptz(3)
@@ -197,8 +198,9 @@ model Category {
   name        String         @db.Citext
   description String?        @db.VarChar(500)
   color       String         @db.Char(7)
-  icon        String?        @db.VarChar(40)
-  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  icon               String?        @db.VarChar(40)
+  showInGlobalSearch Boolean        @default(true) @map("show_in_global_search")
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
   notes       NoteCategory[]
 
