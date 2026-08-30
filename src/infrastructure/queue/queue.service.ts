@@ -11,13 +11,20 @@ export class QueueService implements OnModuleDestroy {
   readonly connection: { url: string };
   readonly search: Queue;
   readonly recap: Queue;
+  readonly backupNotify: Queue;
 
   constructor(config: ConfigService) {
     this.connection = { url: config.getOrThrow("REDIS_URL") };
+
     this.search = new Queue(QUEUE_NAMES.SEARCH, {
       connection: this.connection,
     });
+
     this.recap = new Queue(QUEUE_NAMES.RECAP, { connection: this.connection });
+
+    this.backupNotify = new Queue(QUEUE_NAMES.BACKUP_NOTIFY, {
+      connection: this.connection,
+    });
   }
 
   indexNote(noteId: string) {
@@ -41,6 +48,21 @@ export class QueueService implements OnModuleDestroy {
       JOB_NAMES.REINDEX_CATEGORY_NOTES,
       { categoryId },
       { removeOnComplete: 100, removeOnFail: 100 },
+    );
+  }
+
+  enqueueBackupNotify(text: string, dedupeKey: string) {
+    return this.backupNotify.add(
+      JOB_NAMES.SEND_BACKUP_NOTIFY,
+      { text },
+      {
+        jobId: `backup-notify-${dedupeKey}`,
+        removeOnComplete: 100,
+        removeOnFail: 100,
+        attempts: 3,
+        // delay × 2^(attempt - 1)
+        backoff: { type: "exponential", delay: 30_000 },
+      },
     );
   }
 
