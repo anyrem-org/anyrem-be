@@ -9,7 +9,8 @@ type Node = {
   content?: unknown;
   children?: unknown;
 };
-const blockNote = ServerBlockNoteEditor.create({
+
+export const blockNote = ServerBlockNoteEditor.create({
   tables: {
     splitCells: true,
     cellBackgroundColor: true,
@@ -17,9 +18,15 @@ const blockNote = ServerBlockNoteEditor.create({
     headers: true,
   },
 });
-(blockNote as unknown as { jsdom: { reconfigure: (options: { url: string }) => void } }).jsdom.reconfigure({
+
+(
+  blockNote as unknown as {
+    jsdom: { reconfigure: (options: { url: string }) => void };
+  }
+).jsdom.reconfigure({
   url: "http://localhost",
 });
+
 const record = (value: unknown): Node | undefined =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Node)

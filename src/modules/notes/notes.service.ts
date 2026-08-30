@@ -11,11 +11,12 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.module.js";
 import { QueueService } from "../../infrastructure/queue/queue.service.js";
-import { UploadsService } from "../uploads/uploads.service.js";
 import {
   globalSearchVisibilityWhere,
   isShownInGlobalSearch,
 } from "../search/search.visibility.js";
+import { UploadsService } from "../uploads/uploads.service.js";
+import { BulkCreateNotesFromTemplateRecordDto } from "./notes.dto.js";
 import {
   blockNoteHtmlOf,
   imagePathsOf,
@@ -23,6 +24,11 @@ import {
   titleOf,
   unique,
 } from "./notes.helpers.js";
+import {
+  DEFAULT_NOTE_TEMPLATE_ID,
+  getNoteTemplate,
+  type NoteTemplateRecord,
+} from "./notes.templates.js";
 import {
   NOTE_SORTS,
   type NoteInput,
@@ -81,7 +87,8 @@ export class NotesService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const resolvedCategoryId = categoryId ?? query.categoryId;
-    const isGlobalKeywordSearch = Boolean(query.q?.trim()) && !resolvedCategoryId;
+    const isGlobalKeywordSearch =
+      Boolean(query.q?.trim()) && !resolvedCategoryId;
     const where: Prisma.NoteWhereInput = {
       userId,
       deletedAt: null,
@@ -94,10 +101,10 @@ export class NotesService {
             }
           : undefined,
       categories: resolvedCategoryId
-          ? {
-              some: { categoryId: resolvedCategoryId },
-            }
-          : undefined,
+        ? {
+            some: { categoryId: resolvedCategoryId },
+          }
+        : undefined,
       OR: query.q?.trim()
         ? [
             { title: { contains: query.q.trim(), mode: "insensitive" } },
@@ -335,5 +342,79 @@ export class NotesService {
     return this.prisma.note.findMany({
       where: { userId, id: { in: ids }, deletedAt: null },
     });
+  }
+
+  async bulkCreateNotesFromTemplate(
+    userId: string,
+    records: BulkCreateNotesFromTemplateRecordDto[],
+    templateId = DEFAULT_NOTE_TEMPLATE_ID,
+  ) {
+    const template = getNoteTemplate(templateId);
+    const created: Array<{ id: string; title: string }> = [];
+    const skipped: Array<{ title: string; reason: string }> = [];
+    const seenInBatch = new Set<string>();
+
+    const titles = records.map((record) => record.title.trim());
+    const existingNotes = titles.length
+      ? await this.prisma.note.findMany({
+          where: {
+            userId,
+            deletedAt: null,
+            OR: titles.map((title) => ({
+              title: { equals: title, mode: "insensitive" as const },
+            })),
+          },
+          select: { title: true },
+        })
+      : [];
+
+    const existingTitles = new Set(
+      existingNotes.map((note) => template.normalizeTitle(note.title)),
+    );
+
+    for (const record of records) {
+      const title = record.title.trim();
+      const normalizedTitle = template.normalizeTitle(title);
+
+      if (existingTitles.has(normalizedTitle) || seenInBatch.has(normalizedTitle)) {
+        skipped.push({
+          title,
+          reason: existingTitles.has(normalizedTitle)
+            ? "already_exists"
+            : "duplicate_in_request",
+        });
+        continue;
+      }
+
+      seenInBatch.add(normalizedTitle);
+
+      const contentJson = await template.buildContentJson(
+        this.toTemplateRecord(record),
+      );
+      const note = await this.create(userId, {
+        title,
+        contentJson,
+        editorFormat: "BLOCKNOTE",
+      });
+
+      created.push({ id: note.id, title: note.title });
+      existingTitles.add(normalizedTitle);
+    }
+
+    return {
+      templateId: template.id,
+      created,
+      skipped,
+      summary: `Created ${created.length}, skipped ${skipped.length}.`,
+    };
+  }
+
+  private toTemplateRecord(
+    record: BulkCreateNotesFromTemplateRecordDto,
+  ): NoteTemplateRecord {
+    return {
+      title: record.title.trim(),
+      content: record.content.trim(),
+    };
   }
 }

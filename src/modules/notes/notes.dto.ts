@@ -1,11 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
+  IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -100,4 +103,34 @@ export class PinNoteDto {
   @IsBoolean()
   @ApiProperty()
   pinned!: boolean;
+}
+
+export class BulkCreateNotesFromTemplateRecordDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  @ApiProperty({ example: "compromise" })
+  title!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10_000)
+  @ApiProperty()
+  content!: string;
+}
+
+export class BulkCreateNotesFromTemplateDto {
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    example: "vocabulary",
+    description: "Template id from GET /api/mcp/notes/templates",
+  })
+  templateId?: string;
+
+  @IsArray()
+  @ArrayMaxSize(50)
+  @Type(() => BulkCreateNotesFromTemplateRecordDto)
+  @ApiProperty({ type: [BulkCreateNotesFromTemplateRecordDto] })
+  records!: BulkCreateNotesFromTemplateRecordDto[];
 }
