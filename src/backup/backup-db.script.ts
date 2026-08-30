@@ -61,7 +61,7 @@ const key = backupType === DB_DAILY_TYPE ? databaseDailyKey : uploadsDailyKey;
 try {
   console.log(`Uploading to s3://${bucket}/${key}`);
 
-  await notify(formatBackupStarted(bucket, `started-${key}`), key);
+  await notify(formatBackupStarted(bucket, key), `started-${key}`);
 
   const sizeBytes = await storageService.upload(
     key,
@@ -70,13 +70,13 @@ try {
   );
 
   await notify(
-    formatBackupCompleted(bucket, `completed-${key}`, sizeBytes),
-    key,
+    formatBackupCompleted(bucket, key, sizeBytes),
+    `completed-${key}`,
   );
 
   console.log(`Uploaded s3://${bucket}/${key} (${sizeBytes} bytes)`);
 } catch (error) {
-  await notify(formatBackupFailed(bucket, `failed-${key}`, error), key);
+  await notify(formatBackupFailed(bucket, key, error), `failed-${key}`);
 
   console.error("Error: failed to upload database daily", error);
 
