@@ -8,6 +8,9 @@ import { PrismaService } from "./infrastructure/prisma/prisma.module.js";
 import { QueueService } from "./infrastructure/queue/queue.service.js";
 import { RecapService } from "./modules/recap/recap.service.js";
 import { UploadsService } from "./modules/uploads/uploads.service.js";
+import { TelegramService } from "./infrastructure/telegram/telegram.service.js";
+import { getTelegramConfig } from "./infrastructure/telegram/telegram.config.js";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class WorkerRuntime implements OnApplicationShutdown {
@@ -20,9 +23,12 @@ export class WorkerRuntime implements OnApplicationShutdown {
     private readonly meili: MeiliService,
     private readonly recaps: RecapService,
     private readonly uploads: UploadsService,
+    private readonly telegramService: TelegramService,
+    private readonly configService: ConfigService,
   ) {}
   async start() {
     await this.meili.configure();
+
     this.workers.push(
       new Worker(
         QUEUE_NAMES.SEARCH,
@@ -49,6 +55,7 @@ export class WorkerRuntime implements OnApplicationShutdown {
         { connection: this.queues.connection },
       ),
     );
+
     this.workers.push(
       new Worker(
         QUEUE_NAMES.RECAP,
@@ -62,6 +69,9 @@ export class WorkerRuntime implements OnApplicationShutdown {
         { connection: this.queues.connection },
       ),
     );
+
+    this.notifyBackup();
+
     const tick = async () => {
       await this.recaps.enqueueDue();
       if (Date.now() - this.lastCleanup > 86_400_000) {
@@ -73,6 +83,7 @@ export class WorkerRuntime implements OnApplicationShutdown {
       }
     };
     await tick();
+
     this.timer = setInterval(() => void tick(), 60_000);
   }
 
@@ -109,5 +120,27 @@ export class WorkerRuntime implements OnApplicationShutdown {
   async onApplicationShutdown() {
     if (this.timer) clearInterval(this.timer);
     await Promise.all(this.workers.map((x) => x.close()));
+  }
+
+  private notifyBackup() {
+    this.workers.push(
+      new Worker(
+        QUEUE_NAMES.BACKUP_NOTIFY,
+        async (job) => {
+          if (job.name !== JOB_NAMES.SEND_BACKUP_NOTIFY) {
+            return;
+          }
+
+          const telegramConfig = getTelegramConfig(this.configService);
+
+          await this.telegramService.sendMessage(
+            telegramConfig.botToken,
+            telegramConfig.productDeployTelegramId,
+            job.data.text,
+          );
+        },
+        { connection: this.queues.connection },
+      ),
+    );
   }
 }
