@@ -67,6 +67,10 @@ export class QueueService implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    await Promise.all([this.search.close(), this.recap.close()]);
+    await Promise.all([
+      this.search.close(),
+      this.recap.close(),
+      this.backupNotify.close(),
+    ]);
   }
 }
