@@ -9,6 +9,7 @@ import { createReadStream } from "node:fs";
 import {
   formatBackupCompleted,
   formatBackupFailed,
+  formatBackupStarted,
 } from "./backup.messages.js";
 
 const DB_DAILY_TYPE = "db-daily";
@@ -58,21 +59,30 @@ async function notify(text: string, dedupe: string) {
 const key = backupType === DB_DAILY_TYPE ? databaseDailyKey : uploadsDailyKey;
 
 try {
+  console.log(`Uploading to s3://${bucket}/${key}`);
+
+  await notify(formatBackupStarted(bucket, `started-${key}`), key);
+
   const sizeBytes = await storageService.upload(
     key,
     createReadStream(filePath),
     "application/gzip",
   );
 
-  await notify(formatBackupCompleted(bucket, key, sizeBytes), key);
+  await notify(
+    formatBackupCompleted(bucket, `completed-${key}`, sizeBytes),
+    key,
+  );
 
   console.log(`Uploaded s3://${bucket}/${key} (${sizeBytes} bytes)`);
 } catch (error) {
-  await notify(formatBackupFailed(bucket, key, error), key);
+  await notify(formatBackupFailed(bucket, `failed-${key}`, error), key);
 
   console.error("Error: failed to upload database daily", error);
 
   process.exit(1);
 } finally {
   await app.close();
+
+  process.exit(0);
 }
