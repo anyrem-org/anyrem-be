@@ -64,6 +64,27 @@ DiceBear styles are configured centrally in `scripts/avatar-styles.config.ts`.
 - `/api/notes`, `/api/categories`, `/api/search`, `/api/dashboard`, `/api/graph`.
 - `/api/recaps`: today, history, test, delivery status.
 
+## Production backup upload
+
+Backup shell và cron nằm tại `anyrem-infra/backup/`. Backend chỉ upload archive đã tạo sẵn lên object storage.
+
+Script entry point (sau `pnpm build`):
+
+```text
+dist/backup/backup.script.js
+```
+
+Chạy trong container với `.env.production`:
+
+```bash
+node dist/backup/backup.script.js --type db-daily --file /path/to/dump.sql.gz
+node dist/backup/backup.script.js --type uploads --file /path/to/uploads.tar.gz
+```
+
+Object keys (UTC date): `db/daily/YYYY-MM-DD.sql.gz`, `uploads/YYYY-MM-DD.tar.gz`. Cần `OBJECT_STORAGE_*`, worker chạy để nhận Telegram notify.
+
+Feature specification: `specs/features/013-backup/spec.md`.
+
 ## Checks
 
 ```powershell
